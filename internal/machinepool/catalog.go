@@ -6,6 +6,7 @@ import (
 
 	"github.com/omnara-ai/omnara/internal/machinepool/providers"
 	"github.com/omnara-ai/omnara/internal/machinepool/providers/blaxel"
+	"github.com/omnara-ai/omnara/internal/machinepool/providers/createos"
 	"github.com/omnara-ai/omnara/internal/machinepool/providers/daytona"
 	"github.com/omnara-ai/omnara/internal/machinepool/providers/unikraft"
 	"github.com/omnara-ai/omnara/internal/storage/executionstore"
@@ -21,6 +22,7 @@ func DefaultCatalog() Catalog {
 	return Catalog{
 		definitions: map[string]providers.Definition{
 			providers.Blaxel:   blaxel.Definition{},
+			providers.CreateOS: createos.Definition{},
 			providers.Daytona:  daytona.Definition{},
 			providers.Unikraft: unikraft.Definition{},
 		},

@@ -16,6 +16,7 @@ import (
 
 const (
 	Blaxel   = "blaxel"
+	CreateOS = "createos"
 	Daytona  = "daytona"
 	Unikraft = "unikraft"
 )
