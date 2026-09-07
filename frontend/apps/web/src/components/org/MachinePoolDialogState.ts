@@ -46,6 +46,7 @@ export interface MachinePoolFormValues {
   provider: MachinePoolProvider
   workspace: string
   image: string
+  rootfs: string
   location: string
   startupScript: string
   cwd: string
@@ -76,6 +77,7 @@ export const machinePoolFormDefaults: MachinePoolFormValues = {
   provider: 'blaxel',
   workspace: '',
   image: '',
+  rootfs: 'devbox:1',
   location: machinePoolProviderDefinitions.blaxel.location.defaultValue,
   startupScript: '',
   cwd: '',
@@ -144,6 +146,7 @@ export function machinePoolFormAfterProviderChange(
     provider,
     workspace: '',
     image: '',
+    rootfs: 'devbox:1',
     location: nextDefinition.location.defaultValue,
     cpu:
       currentDefinition.resources.cpu === nextDefinition.resources.cpu
@@ -171,6 +174,7 @@ export function machinePoolFormValid(
   const clusterEdit = mode === 'cluster-edit'
   const maxMachinesValid = clusterEdit || nonNegativeInt32(values.maxMachines)
   const cpuValid =
+    !provider.resources.showSizeControls ||
     provider.resources.cpu === 'unsupported' ||
     (positiveInt32(values.cpu) &&
       (clusterEdit ||
@@ -178,6 +182,7 @@ export function machinePoolFormValid(
           (values.maxTotalCpu.trim() !== '' ||
             aggregateFitsInt32(values.cpu, values.maxMachines)))))
   const memoryValid =
+    !provider.resources.showSizeControls ||
     provider.resources.memoryMb === 'unsupported' ||
     (memoryGbDraftValid(values.memoryGb) &&
       (clusterEdit ||
@@ -280,6 +285,7 @@ export function machinePoolCreateRequest(values: MachinePoolFormValues): CreateM
         provider: 'createos',
         default_machine_provider_options: {
           shape: values.image.trim(),
+          rootfs: values.rootfs.trim(),
           region: values.location.trim(),
           ...startupScript,
         },
@@ -312,6 +318,7 @@ export function machinePoolFormFromPool(pool: MachinePool): MachinePoolFormValue
     provider,
     workspace: providerOptionStrings(pool.provider_config).workspace ?? '',
     image: options[definition.resource.key] ?? '',
+    rootfs: options.rootfs ?? 'devbox:1',
     location: options[definition.location.key] ?? '',
     startupScript: options.startup_script ?? '',
     cwd: pool.default_cwd,
@@ -349,6 +356,7 @@ export function machinePoolUpdateRequest(
     definition.location.key,
     'startup_script',
   ])
+  if (values.provider === 'createos') editableOptionKeys.add('rootfs')
   const defaultMachineProviderOptions = Object.fromEntries(
     Object.entries(pool.default_machine_provider_options).filter(
       ([key]) => !editableOptionKeys.has(key),
@@ -356,6 +364,9 @@ export function machinePoolUpdateRequest(
   )
   defaultMachineProviderOptions[definition.resource.key] = values.image.trim()
   defaultMachineProviderOptions[definition.location.key] = values.location.trim()
+  if (values.provider === 'createos') {
+    defaultMachineProviderOptions.rootfs = values.rootfs.trim()
+  }
   if (values.startupScript.trim() !== '') {
     defaultMachineProviderOptions.startup_script = values.startupScript
   }

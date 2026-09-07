@@ -19,6 +19,8 @@ interface MachinePoolProviderDefinition {
   resources: {
     cpu: MachinePoolResourceMode
     memoryMb: MachinePoolResourceMode
+    showSizeControls: boolean
+    showLimitControls: boolean
   }
 }
 
@@ -42,7 +44,12 @@ const unikraft: MachinePoolProviderDefinition = {
     defaultValue: 'sfo',
   },
   requiresWorkspace: false,
-  resources: { cpu: 'configured', memoryMb: 'configured' },
+  resources: {
+    cpu: 'configured',
+    memoryMb: 'configured',
+    showSizeControls: true,
+    showLimitControls: true,
+  },
 }
 
 const blaxel: MachinePoolProviderDefinition = {
@@ -61,7 +68,12 @@ const blaxel: MachinePoolProviderDefinition = {
     defaultValue: 'us-pdx-1',
   },
   requiresWorkspace: true,
-  resources: { cpu: 'unsupported', memoryMb: 'configured' },
+  resources: {
+    cpu: 'unsupported',
+    memoryMb: 'configured',
+    showSizeControls: true,
+    showLimitControls: true,
+  },
 }
 
 const daytona: MachinePoolProviderDefinition = {
@@ -78,7 +90,12 @@ const daytona: MachinePoolProviderDefinition = {
     defaultValue: 'us',
   },
   requiresWorkspace: false,
-  resources: { cpu: 'provider-resolved', memoryMb: 'provider-resolved' },
+  resources: {
+    cpu: 'provider-resolved',
+    memoryMb: 'provider-resolved',
+    showSizeControls: true,
+    showLimitControls: true,
+  },
 }
 
 const createos: MachinePoolProviderDefinition = {
@@ -95,13 +112,20 @@ const createos: MachinePoolProviderDefinition = {
     defaultValue: 'us',
   },
   requiresWorkspace: false,
-  resources: { cpu: 'provider-resolved', memoryMb: 'provider-resolved' },
+  resources: {
+    cpu: 'provider-resolved',
+    memoryMb: 'provider-resolved',
+    showSizeControls: false,
+    showLimitControls: true,
+  },
 }
 
-export const machinePoolProviderDefinitions = { unikraft, blaxel, daytona, createos } satisfies Record<
-  MachinePoolProvider,
-  MachinePoolProviderDefinition
->
+export const machinePoolProviderDefinitions = {
+  unikraft,
+  blaxel,
+  daytona,
+  createos,
+} satisfies Record<MachinePoolProvider, MachinePoolProviderDefinition>
 
 export function isMachinePoolProvider(value: string): value is MachinePoolProvider {
   return Object.hasOwn(machinePoolProviderDefinitions, value)

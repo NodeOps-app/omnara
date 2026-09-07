@@ -88,6 +88,8 @@ export {
   type MachinePoolListFilters,
   type MachinePoolListOptions,
   type MachinePoolListSort,
+  useCreateOSRootFS,
+  useCreateOSShapes,
   useCreateMachinePool,
   useDeleteMachinePool,
   useMachinePool,

@@ -94,7 +94,7 @@ export function ProviderOptionsOverrideFields({
       }
   return (
     <>
-      {pool.management_kind !== 'cluster' && (
+      {pool.management_kind !== 'cluster' && pool.provider !== 'createos' && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor={`${idPrefix}-resource`}>{definition.resource.label}</FieldLabel>
