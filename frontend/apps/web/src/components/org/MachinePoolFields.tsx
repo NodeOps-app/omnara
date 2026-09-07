@@ -8,6 +8,8 @@ import {
   type MachinePoolFormValues,
   machinePoolProviderLabel,
 } from './MachinePoolDialogState'
+import { CreateOSShapeField } from './CreateOSShapeField'
+import { CreateOSRootFSField } from './CreateOSRootFSField'
 import { MachinePoolInputField } from './MachinePoolInputField'
 import { isMachinePoolProvider, machinePoolProviderDefinitions } from './machinePoolProviders'
 import { MachinePoolProviderSelect } from './MachinePoolProviderSelect'
@@ -41,6 +43,7 @@ export function MachinePoolFields({
     setValue('provider', nextValues.provider)
     setValue('workspace', nextValues.workspace)
     setValue('image', nextValues.image)
+    setValue('rootfs', nextValues.rootfs)
     setValue('location', nextValues.location)
     setValue('cpu', nextValues.cpu)
     setValue('memoryGb', nextValues.memoryGb)
@@ -83,19 +86,60 @@ export function MachinePoolFields({
               setValue('description', description)
             }}
           />
-          <MachinePoolInputField
-            id="mpool-image"
-            label={definition.resource.label}
-            required
-            value={values.image}
-            placeholder={definition.resource.placeholder}
-            autoComplete="off"
-            onValueChange={(image) => {
-              setValue('image', image)
-            }}
-            description={definition.resource.description}
-            descriptionHref={definition.resource.descriptionHref}
-          />
+          {values.provider === 'createos' && (
+            <CredentialSecretField
+              key={values.provider}
+              orgId={orgId}
+              enabled={enabled}
+              value={values.secretId}
+              onChange={(secretId) => {
+                setValue('secretId', secretId)
+              }}
+              label="CreateOS API token"
+              placeholder="Search secrets for your CreateOS token…"
+              emptyDescription="No secrets yet — use New secret to store your CreateOS API token."
+              defaultSecretName="createos-api-token"
+              secretValuePlaceholder="Provider API token"
+            />
+          )}
+          {values.provider === 'createos' ? (
+            <CreateOSShapeField
+              orgId={orgId}
+              enabled={enabled}
+              secretId={values.secretId}
+              value={values.image}
+              onSelect={(shape) => {
+                setValue('image', shape.id)
+                setValue('cpu', String(shape.vcpu))
+                setValue('memoryGb', String(shape.memory_mb / 1024))
+              }}
+            />
+          ) : (
+            <MachinePoolInputField
+              id="mpool-image"
+              label={definition.resource.label}
+              required
+              value={values.image}
+              placeholder={definition.resource.placeholder}
+              autoComplete="off"
+              onValueChange={(image) => {
+                setValue('image', image)
+              }}
+              description={definition.resource.description}
+              descriptionHref={definition.resource.descriptionHref}
+            />
+          )}
+          {values.provider === 'createos' && (
+            <CreateOSRootFSField
+              orgId={orgId}
+              enabled={enabled}
+              secretId={values.secretId}
+              value={values.rootfs}
+              onChange={(rootfs) => {
+                setValue('rootfs', rootfs)
+              }}
+            />
+          )}
           {definition.requiresWorkspace && (
             <MachinePoolInputField
               id="mpool-workspace"
@@ -142,7 +186,7 @@ export function MachinePoolFields({
           }}
         />
       )}
-      {!clusterEdit && (
+      {!clusterEdit && values.provider !== 'createos' && (
         <CredentialSecretField
           key={values.provider}
           orgId={orgId}
