@@ -8,7 +8,7 @@ import (
 )
 
 func TestProviderMachinePoolResourceContracts(t *testing.T) {
-	for _, provider := range []string{"unikraft", "daytona", "blaxel"} {
+	for _, provider := range []string{"unikraft", "daytona", "blaxel", "createos"} {
 		t.Run(provider+" valid", func(t *testing.T) {
 			policy := validProviderResourcePolicyForTest(provider)
 			if err := ValidateMachinePoolResourcePolicy(provider, policy, resourcePolicyForTest(provider)); err != nil {
@@ -16,6 +16,18 @@ func TestProviderMachinePoolResourceContracts(t *testing.T) {
 			}
 		})
 	}
+	t.Run("createos valid with optional defaults", func(t *testing.T) {
+		policy := validProviderResourcePolicyForTest("createos")
+		policy.DefaultProvisioning.CPU = resourceIntPtr(1)
+		policy.DefaultProvisioning.MemoryMB = resourceIntPtr(1024)
+		if err := ValidateMachinePoolResourcePolicy(
+			"createos",
+			policy,
+			resourcePolicyForTest("createos"),
+		); err != nil {
+			t.Fatalf("validate createos resource policy with defaults: %v", err)
+		}
+	})
 	t.Run("daytona valid with optional defaults", func(t *testing.T) {
 		policy := validProviderResourcePolicyForTest("daytona")
 		policy.DefaultProvisioning.CPU = resourceIntPtr(1)
@@ -91,6 +103,30 @@ func TestProviderMachinePoolResourceContracts(t *testing.T) {
 		{
 			name:     "daytona requires per-machine memory limit",
 			provider: "daytona",
+			mutate:   func(policy *executionstore.MachinePoolProviderPolicy) { policy.ResourceLimits.MaxMachineMemoryMB = nil },
+			want:     "require max_machine_memory_mb",
+		},
+		{
+			name:     "createos requires total cpu limit",
+			provider: "createos",
+			mutate:   func(policy *executionstore.MachinePoolProviderPolicy) { policy.ResourceLimits.MaxTotalCPU = nil },
+			want:     "require max_total_cpu",
+		},
+		{
+			name:     "createos requires total memory limit",
+			provider: "createos",
+			mutate:   func(policy *executionstore.MachinePoolProviderPolicy) { policy.ResourceLimits.MaxTotalMemoryMB = nil },
+			want:     "require max_total_memory_mb",
+		},
+		{
+			name:     "createos requires per-machine cpu limit",
+			provider: "createos",
+			mutate:   func(policy *executionstore.MachinePoolProviderPolicy) { policy.ResourceLimits.MaxMachineCPU = nil },
+			want:     "require max_machine_cpu",
+		},
+		{
+			name:     "createos requires per-machine memory limit",
+			provider: "createos",
 			mutate:   func(policy *executionstore.MachinePoolProviderPolicy) { policy.ResourceLimits.MaxMachineMemoryMB = nil },
 			want:     "require max_machine_memory_mb",
 		},
@@ -219,7 +255,7 @@ func validProviderResourcePolicyForTest(
 	case "unikraft":
 		policy.DefaultProvisioning.CPU = resourceIntPtr(1)
 		policy.DefaultProvisioning.MemoryMB = resourceIntPtr(1024)
-	case "daytona":
+	case "createos", "daytona":
 	case "blaxel":
 		policy.DefaultProvisioning.MemoryMB = resourceIntPtr(1024)
 		policy.ResourceLimits.MaxTotalCPU = nil
@@ -243,7 +279,7 @@ func resourcePolicyForTest(provider string) MachineResourcePolicy {
 				Provisioning: MachineResourceConfigured,
 			},
 		}
-	case "daytona":
+	case "createos", "daytona":
 		return MachineResourcePolicy{
 			CPU: MachineResourceContract{
 				PoolDefault:  MachineResourceOptional,

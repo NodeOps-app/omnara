@@ -1356,6 +1356,90 @@ func TestPublicDaytonaMachinePoolAcceptsOptionalDefaultsWithoutProviderResolutio
 	}
 }
 
+func TestPublicCreateOSMachinePoolAcceptsOptionalDefaultsWithoutProviderResolution(t *testing.T) {
+	ctx := context.Background()
+	pool := openIntegrationDB(t, ctx)
+	createos := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("machine pool configuration must not call CreateOS")
+		http.Error(w, "unexpected provider request", http.StatusInternalServerError)
+	}))
+	defer createos.Close()
+
+	handler := newIntegrationServer(pool, WithPublicURL("https://app.omnara.test"))
+	store := integrationStoreForHandler(t, handler)
+	project := bootstrapPublicHTTPProject(t, handler, "createos-machine-pool")
+	providerAuthSecretID := createPublicHTTPMachinePoolProviderAuthSecret(
+		t,
+		handler,
+		project,
+		"createos-provider-auth",
+		"createos-token",
+	)
+	poolResponse := requestJSONWithHeaders(
+		t,
+		handler,
+		http.MethodPost,
+		"/api/v1/orgs/"+project.OrgID+"/machine-pools",
+		`{"name":"createos","provider":"createos","default_machine_cpu":2,"default_machine_memory_mb":4096,"default_machine_env":{},"default_machine_provider_options":{"shape":"2vcpu-4gb","rootfs":"ubuntu-24-04","region":"us"},"provider_config":{"api_base_url":"`+createos.URL+`","allowed_shapes":["*"],"allowed_rootfses":["*"],"allowed_regions":["us"]},"provider_auth_secret_id":"`+providerAuthSecretID+`","max_total_machines":2,"max_total_cpu":4,"max_total_memory_mb":8192,"max_machine_cpu":2,"max_machine_memory_mb":4096}`,
+		"",
+		http.StatusCreated,
+		authHeaders(project.AdminToken),
+	)
+	if poolResponse["default_machine_cpu"] != float64(2) ||
+		poolResponse["default_machine_memory_mb"] != float64(4096) {
+		t.Fatalf("createos configured resources = %+v", poolResponse)
+	}
+	options := testutil.RequireType[map[string]any](t, poolResponse["default_machine_provider_options"])
+	if options["shape"] != "2vcpu-4gb" || options["rootfs"] != "ubuntu-24-04" || options["region"] != "us" {
+		t.Fatalf("createos configured options = %+v", options)
+	}
+	poolID := testutil.RequireType[string](t, poolResponse["id"])
+	stored, err := store.Execution().GetMachinePool(
+		ctx,
+		project.OrgUUID,
+		mustPublicHTTPID(t, publicid.KindMachinePool, poolID),
+	)
+	if err != nil {
+		t.Fatalf("get createos machine pool: %v", err)
+	}
+	if stored.DefaultMachineCPU == nil || *stored.DefaultMachineCPU != 2 ||
+		stored.DefaultMachineMemoryMB == nil || *stored.DefaultMachineMemoryMB != 4096 {
+		t.Fatalf(
+			"stored createos resources = cpu %v memory %v",
+			stored.DefaultMachineCPU,
+			stored.DefaultMachineMemoryMB,
+		)
+	}
+	updated := requestJSONWithHeaders(
+		t,
+		handler,
+		http.MethodPut,
+		"/api/v1/orgs/"+project.OrgID+"/machine-pools/"+poolID,
+		`{"default_machine_provider_options":{"shape":"8vcpu-16gb","rootfs":"ubuntu-24-04","region":"us"},"max_total_cpu":8,"max_total_memory_mb":16384,"max_machine_cpu":4,"max_machine_memory_mb":8192}`,
+		"",
+		http.StatusOK,
+		authHeaders(project.AdminToken),
+	)
+	if updated["default_machine_cpu"] != float64(2) ||
+		updated["default_machine_memory_mb"] != float64(4096) ||
+		testutil.RequireType[map[string]any](t, updated["default_machine_provider_options"])["shape"] != "8vcpu-16gb" {
+		t.Fatalf("updated createos resources = %+v", updated)
+	}
+	rejected := requestJSONWithHeaders(
+		t,
+		handler,
+		http.MethodPut,
+		"/api/v1/orgs/"+project.OrgID+"/machine-pools/"+poolID,
+		`{"default_machine_provider_options":{"shape":"8vcpu-16gb","rootfs":"ubuntu-24-04","region":"eu"},"max_total_cpu":8,"max_total_memory_mb":16384,"max_machine_cpu":4,"max_machine_memory_mb":8192}`,
+		"",
+		http.StatusBadRequest,
+		authHeaders(project.AdminToken),
+	)
+	if !strings.Contains(testutil.RequireType[string](t, rejected["error"]), "allowed_regions") {
+		t.Fatalf("disallowed createos region response = %+v", rejected)
+	}
+}
+
 func TestPublicDefaultMachinePoolAgentConfigValidationDoesNotRequireProviderAuth(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

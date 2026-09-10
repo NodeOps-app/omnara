@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   derivedMemoryTotalCapPlaceholder,
   machinePoolCreateRequest,
+  machinePoolFormAfterProviderChange,
   machinePoolFormDefaults,
   machinePoolFormFromPool,
   machinePoolFormValid,
@@ -212,6 +213,78 @@ describe('machine pool edit state', () => {
     expect(request).not.toHaveProperty('default_machine_memory_mb')
   })
 
+  it('uses CreateOS max-machine resources and keeps its root filesystem editable', () => {
+    const pool = machinePool({
+      provider: 'createos',
+      default_machine_cpu: null,
+      default_machine_memory_mb: null,
+      default_machine_provider_options: {
+        shape: '2vcpu-4gb',
+        rootfs: 'ubuntu-24-04',
+        region: 'us',
+      },
+      max_total_cpu: 12,
+      max_total_memory_mb: 9219,
+      max_machine_cpu: 4,
+      max_machine_memory_mb: 3073,
+    })
+
+    const values = machinePoolFormFromPool(pool)
+
+    if (values === null) throw new Error('expected supported provider form values')
+    expect(values).toMatchObject({
+      provider: 'createos',
+      image: '2vcpu-4gb',
+      rootfs: 'ubuntu-24-04',
+      location: 'us',
+      cpu: '4',
+      memoryGb: '3',
+      maxMachineCpu: '',
+      maxMachineMemoryGb: '',
+    })
+    const request = machinePoolUpdateRequest(pool, { ...values, rootfs: 'debian-13' })
+    expect(request).toMatchObject({
+      default_machine_provider_options: {
+        shape: '2vcpu-4gb',
+        rootfs: 'debian-13',
+        region: 'us',
+      },
+      max_machine_cpu: 4,
+      max_machine_memory_mb: 3073,
+      max_total_memory_mb: 9219,
+    })
+    expect(request).not.toHaveProperty('default_machine_cpu')
+    expect(request).not.toHaveProperty('default_machine_memory_mb')
+  })
+
+  it('creates a CreateOS pool from its shape, root filesystem, and region', () => {
+    const values = {
+      ...machinePoolFormAfterProviderChange(machinePoolFormDefaults, 'createos'),
+      name: 'createos',
+      image: '2vcpu-4gb',
+      rootfs: 'ubuntu-24-04',
+      secretId: 'secret_1',
+      maxMachines: '2',
+    }
+
+    expect(values.location).toBe('us')
+    expect(machinePoolFormValid(values)).toBe(true)
+    expect(machinePoolCreateRequest(values)).toMatchObject({
+      provider: 'createos',
+      default_machine_provider_options: {
+        shape: '2vcpu-4gb',
+        rootfs: 'ubuntu-24-04',
+        region: 'us',
+      },
+      max_total_cpu: 2,
+      max_total_memory_mb: 2048,
+      max_machine_cpu: 1,
+      max_machine_memory_mb: 1024,
+    })
+    expect(machinePoolCreateRequest(values)).not.toHaveProperty('default_machine_cpu')
+    expect(machinePoolCreateRequest(values)).not.toHaveProperty('default_machine_memory_mb')
+  })
+
   it('serializes only organization-editable fields for a cluster pool', () => {
     const pool = machinePool({
       management_kind: 'cluster',
@@ -304,6 +377,28 @@ describe('machine pool edit state', () => {
     expect(daytonaRequest).toHaveProperty('max_machine_memory_mb', 3072)
     expect(daytonaRequest).not.toHaveProperty('default_machine_cpu')
     expect(daytonaRequest).not.toHaveProperty('default_machine_memory_mb')
+
+    const createos = machinePool({
+      management_kind: 'cluster',
+      provider: 'createos',
+      provider_auth_secret_id: undefined,
+      default_machine_cpu: null,
+      default_machine_memory_mb: null,
+      default_machine_provider_options: {
+        shape: '2vcpu-4gb',
+        rootfs: 'ubuntu-24-04',
+        region: 'us',
+      },
+      max_machine_cpu: 4,
+      max_machine_memory_mb: 3072,
+    })
+    const createosValues = machinePoolFormFromPool(createos)
+    if (createosValues === null) throw new Error('expected CreateOS form values')
+    const createosRequest = machinePoolUpdateRequest(createos, createosValues)
+    expect(createosRequest).toHaveProperty('max_machine_cpu', 4)
+    expect(createosRequest).toHaveProperty('max_machine_memory_mb', 3072)
+    expect(createosRequest).not.toHaveProperty('default_machine_cpu')
+    expect(createosRequest).not.toHaveProperty('default_machine_memory_mb')
   })
 
   it('rejects unsupported and changed providers', () => {
