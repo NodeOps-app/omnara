@@ -611,6 +611,50 @@ func TestCreateOSAllocationName(t *testing.T) {
 	}
 }
 
+func TestCreateOSProviderWakeResumesSandboxByID(t *testing.T) {
+	api := newFakeAPI()
+	machineProvider := newTestProvider(api)
+	input := providers.WakeMachineInput{ProviderResourceID: "sb-paused"}
+	if err := machineProvider.WakeMachine(context.Background(), input); err != nil {
+		t.Fatalf("wake createos machine: %v", err)
+	}
+	if api.resumeCalls != 1 || api.resumedIDs[0] != input.ProviderResourceID {
+		t.Fatalf("resume calls = %d ids = %#v", api.resumeCalls, api.resumedIDs)
+	}
+	// A wake may be retried after an ambiguous transport failure.
+	if err := machineProvider.WakeMachine(context.Background(), input); err != nil {
+		t.Fatalf("repeat wake createos machine: %v", err)
+	}
+	if api.resumeCalls != 2 {
+		t.Fatalf("repeat resume calls = %d, want 2", api.resumeCalls)
+	}
+}
+
+func TestCreateOSProviderWakeRejectsMissingResourceID(t *testing.T) {
+	api := newFakeAPI()
+	err := newTestProvider(api).WakeMachine(context.Background(), providers.WakeMachineInput{
+		SandboxURL: "https://sandbox.createos.test",
+	})
+	if err == nil || !strings.Contains(err.Error(), "provider resource id is required") {
+		t.Fatalf("wake without a resource id = %v", err)
+	}
+	if api.resumeCalls != 0 {
+		t.Fatalf("resume calls = %d, want none", api.resumeCalls)
+	}
+}
+
+func TestCreateOSProviderWakeSurfacesProviderFailures(t *testing.T) {
+	api := newFakeAPI()
+	api.resumeErr = apiError{StatusCode: http.StatusServiceUnavailable}
+	err := newTestProvider(api).WakeMachine(
+		context.Background(),
+		providers.WakeMachineInput{ProviderResourceID: "sb-paused"},
+	)
+	if !errors.As(err, &apiError{}) {
+		t.Fatalf("wake failure = %v, want an API error", err)
+	}
+}
+
 func TestCreateOSProviderProvisioningTimeout(t *testing.T) {
 	if timeout := newTestProvider(newFakeAPI()).ProvisioningTimeout(); timeout != 2*time.Minute {
 		t.Fatalf("provisioning timeout = %v", timeout)

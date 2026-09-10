@@ -193,12 +193,18 @@ func (p *provider) DeleteMachine(
 	return p.api.DeleteSandbox(ctx, id)
 }
 
+// WakeMachine resumes a paused sandbox by id. CreateOS resume is idempotent for
+// an already-running sandbox, so a retry after an ambiguous transport failure is
+// safe. Machines only reach the asleep state once they carry a sandbox URL, which
+// CreateOS does not expose, so nothing currently drives this path.
 func (p *provider) WakeMachine(ctx context.Context, input providers.WakeMachineInput) error {
 	if input.ProviderResourceID == "" {
 		return errors.New("createos provider resource id is required")
 	}
 	return p.api.ResumeSandbox(ctx, input.ProviderResourceID)
 }
+
+var _ providers.MachineWaker = (*provider)(nil)
 
 func allocationName(installationID, machineID storage.ID) (string, error) {
 	canonical, err := providers.MachineAllocationName(installationID, machineID)
