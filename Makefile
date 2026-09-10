@@ -489,9 +489,10 @@ test-live-sandbox-providers:
 	@$(LOAD_DOTENV); \
 	$(GO) test -count=1 -v \
 		./internal/machinepool/providers/blaxel \
+		./internal/machinepool/providers/createos \
 		./internal/machinepool/providers/daytona \
 		./internal/machinepool/providers/unikraft \
-		-run '^Test(Blaxel|Daytona|Unikraft)ProviderLiveSmoke$$'
+		-run '^Test(Blaxel|CreateOS|Daytona|Unikraft)ProviderLiveSmoke$$'
 
 test-live: test-live-web test-live-openai-responses test-live-openai-chat-completions test-live-openrouter test-live-anthropic test-live-api-format-switching test-live-sandbox-providers
 
