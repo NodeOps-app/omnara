@@ -175,7 +175,15 @@ func (c *restClient) CreateProcess(ctx context.Context, id string, input createP
 }
 
 func (c *restClient) do(ctx context.Context, method, path string, body, out any) error {
-	response, err := providers.DoHTTPResponse(ctx, c.httpClient, providers.CreateOS, method, c.baseURL+path, map[string]string{"X-Api-Key": c.token}, body)
+	response, err := providers.DoHTTPResponse(
+		ctx,
+		c.httpClient,
+		providers.CreateOS,
+		method,
+		c.baseURL+path,
+		map[string]string{"X-Api-Key": c.token},
+		body,
+	)
 	if err != nil {
 		return err
 	}

@@ -44,12 +44,20 @@ func (p *provider) ObserveRuntimeState(
 		observation.State = providers.RuntimeStateTerminated
 		return observation, nil
 	}
+	return createOSObservationForSandbox(target, targetSandbox), nil
+}
+
+func createOSObservationForSandbox(
+	target providers.RuntimeTarget,
+	current sandbox,
+) providers.RuntimeObservation {
+	observation := target.UnknownObservation()
 	expectedName, err := allocationName(target.InstallationID, target.MachineID)
-	if err != nil || targetSandbox.ID != target.ProviderResourceID || targetSandbox.Name != expectedName {
-		return observation, nil
+	if err != nil || current.ID != target.ProviderResourceID || current.Name != expectedName {
+		return observation
 	}
-	observation.State = createOSRuntimeState(targetSandbox.Status)
-	return observation, nil
+	observation.State = createOSRuntimeState(current.Status)
+	return observation
 }
 
 func createOSRuntimeState(status sandboxStatus) providers.RuntimeState {
